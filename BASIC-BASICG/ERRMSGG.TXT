@@ -1,0 +1,51 @@
+ 1  01  NEXT without FOR
+ 2  02  Syntax error
+ 3  03  RETURN without GOSUB
+ 4  04  Out of DATA
+ 5  05  Illegal function call
+ 6  06  Overflow
+ 7  07  Out of memory
+ 8  08  Undefined line number
+ 9  09  Subscript out of range
+10  0A  Duplicate Definition
+11  0B  Division by zero
+12  0C  Illegal direct
+13  0D  Type mismatch
+14  0E  Out of string space
+15  0F  String too long
+16  10  String formula too complex
+17  11  Can't continue
+18  12  Undefined user function
+19  13  No RESUME
+20  14  RESUME without error
+21  15  Unprintable error
+22  16  Missing operand
+23  17  Line buffer overflow
+24  18  ?
+25  19  ?
+26  1A  FOR Without NEXT
+27  1B  ?
+28  1C  ?
+29  1D  WHILE without WEND
+30  1E  WEND without WHILE
+50  32  FIELD overflow
+51  33  Internal error
+52  34  Bad file number
+53  35  File not found
+54  36  Bad file mode
+55  37  File already open
+56  38  ?
+57  39  Device I/O error
+58  3A  File already exists
+59  3B  ?
+60  3C  ?
+61  3D  Disk full
+62  3E  Input past end
+63  3F  Bad record number
+64  40  Bad file name
+65  41  ?
+66  42  Direct statement in file
+67  43  Too many files
+68  44  Disk write protected
+69  45  File access DENIED
+70  46  Command Aborted
