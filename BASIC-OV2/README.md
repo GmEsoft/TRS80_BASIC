@@ -2,15 +2,16 @@ LS-DOS 6.3.1 BASIC 01.01.02 (c) 1984 by Microsoft with LSI enhancements
 =======================================================================
 
 
-Here's a version of the BASIC interpreter published by Tandy, as an extension
-of the stock BASIC interpreter enhanced to include the LSI enhancements.
+This is the LS-DOS 6.3 edition of the BASIC interpreter, released by LSI/Misosys 
+as an enhanced extension of the TRSDOS 6.2 BASIC interpreter, incorporating 
+additional features developed by LSI.
 
 Those LSI enhancements add some code editing facilities, like arrow keys to
 navigate in the BASIC program code, one-key editing mode, enhanced RENUM,
 abbreviated commands for LIST, DELETE, AUTO, EDIT and SYSTEM, and some other 
 facilities like Copy, Mode, Find and Search.
 
-Those LSI enhancements changed the BASIC version from 01.01.00 to 01.01.02.
+Those LSI enhancements changed the BASIC version number from 01.01.00 to 01.01.02.
 
 The original source code of the enhancements to the stock BASIC interpreter
 were put to public domain by Frank Durda IV on his site at this 
@@ -58,7 +59,7 @@ Credits
 
 Credits go to:
 
-- Microsoft, obviously, for authoring both BASIC and BASICG;
+- Microsoft, of course, for authoring both BASIC and BASICG;
 - Microsoft again, for releasing the original ALTAIR BASIC and GW-BASIC source
   codes, helping me understand how the BASIC and BASICG interpreters work inside
   (the hi-res extensions included in BASICG are indeed a subset of GW-BASIC,

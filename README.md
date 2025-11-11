@@ -103,6 +103,8 @@ External Links
   - Scanned Source Listing Printout: 
     - https://www.gatesnotes.com/meet-bill/source-code/reader/microsoft-original-source-code
     - https://images.gatesnotes.com/12514eb8-7b51-008e-41a9-512542cf683b/34d561c8-cf5c-4e69-af47-3782ea11482e/Original-Microsoft-Source-Code.pdf
+  - Typed-in version of the Source Listing by Bruce Tomlin on Vintage Computer Federation:
+    - https://forum.vcfed.org/index.php?threads/microsoft-basic-source-code-and-internals.1252711
 
 - GW-BASIC
   - Github: https://github.com/microsoft/GW-BASIC
@@ -131,6 +133,7 @@ Acknowledgements and Credits
 ----------------------------
 
 - **Microsoft**, for making the source codes of ALTAIR BASIC and GW-BASIC generally available to the public;
+- **Bruce Tomlin**, for having spent time typing in the full Source Listing from Microsoft;
 - **Philip Stevens** 'feilipu' for the source of NASCOM BASIC 4.7;
 - Members of **z88dk** mainly for the MSX BASIC especially the Hi-Res code, also for the CP/M MBASIC;
 - **Jack Decker**'s 'TRS-80 Rom Routines Documented (The Alternate Source)';

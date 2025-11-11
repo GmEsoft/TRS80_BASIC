@@ -2,15 +2,17 @@ LS-DOS 6.3.1 BASICG 01.01.03 (c) 1984 by Microsoft with LSI enhancements
 ========================================================================
 
 
-Here's a version of the BASICG interpreter published by Tandy, as an extension
-of the stock BASIC interpreter to support high-resolution graphics, and now
-further enhanced to include the LSI enhancements that have been added to the
-non-hires version of BASIC.
+This version of the BASICG interpreter, originally published by Tandy, extends 
+the standard BASIC interpreter with support for high-resolution graphics. It 
+has now been further upgraded to incorporate the LSI enhancements previously 
+available only in the non-hires edition of BASIC.
 
-Those LSI enhancements add some code editing facilities, like arrow keys to
-navigate in the BASIC program code, one-key editing mode, enhanced RENUM,
-abbreviated commands for LIST, DELETE, AUTO, EDIT and SYSTEM, and some other 
-facilities like Copy, Mode, Find and Search.
+These LSI enhancements introduce a range of code editing features, including:
+- Arrow key navigation within BASIC program code;
+- One-key editing mode for streamlined input;
+- An improved RENUM command;
+- Abbreviated forms of key commands such as LIST, DELETE, AUTO, EDIT, and SYSTEM;
+- Additional utilities like Copy, Mode, Find, and Search for enhanced workflow.
 
 Those LSI enhancements changed the BASIC version from 01.01.00 to 01.01.02.
 
