@@ -9,7 +9,7 @@ Some BASIC implementations for the TRS-80
 :construction: WORK IN PROGRESS :construction: 
 
 
-See branch 'develop'.
+See branch [`develop`](tree/develop).
 The following BASIC versions are included:
 - Model I Level II BASIC
 - Model 4 TRSDOS 6.2 Disk BASIC and Hi-Res BASICG
