@@ -16,6 +16,20 @@
 ;
 
 ;-----------------------------------------------------------------------------
+;	Version selection:
+;
+;	-P0=0	Original MBASIC.COM, CP/M Version
+;	-P0=1	VT-100/ANSI CP/M Version
+;	-P0=2	ADM-3A/Montezuma Micro 2.30+ CP/M Version
+
+	IF	@@0
+EDITION	EQU	@@0
+	ELSE
+EDITION	EQU	@@0
+	ENDIF
+
+
+;-----------------------------------------------------------------------------
 ;	Montezuma Micro extensions
 ;	--------------------------
 ;	Additional statements
@@ -23,7 +37,18 @@
 ;	LOCATE x,y,c		Locate and enable/disable the cursor
 ;	COLOR c			Set the color (0:normal, 1:reverse)
 ;
-MMEXT	EQU	1		;Enable Montezuma Micro extensions
+MMEXT	EQU	EDITION=2	;Enable Montezuma Micro extensions
+
+;-----------------------------------------------------------------------------
+;	VT-100/ANSI extensions
+;	----------------------
+;	Additional statements
+;	CLS			Clears the screen
+;	LOCATE x,y,c		Locate and enable/disable the cursor
+;	COLOR f,b		Set the foreground/background colors 
+;				(f=foreground [0..15], b=background [0..7])
+;
+ANSIEXT	EQU	EDITION=1	;Enable VT100/ANSI extensions
 
 ;-----------------------------------------------------------------------------
 	ORG	0100H
@@ -212,7 +237,7 @@ STMDSP	DEFTOK	END,ENDST
 	DEFTOK	OUT,FNOUT
 	DEFTOK	LPRINT
 	DEFTOK	LLIST
-	IF	MMEXT
+	IF	MMEXT OR ANSIEXT
 	 DEFTOK	CLS		;(VT52)
 	ELSE
 	 SKIPTOK 0		;CLS (VT52)
@@ -244,13 +269,13 @@ STMDSP	DEFTOK	END,ENDST
 	DEFTOK	CHAIN
 	DEFTOK	OPTION
 	DEFTOK	RANDOM
-	IF	MMEXT
+	IF	MMEXT OR ANSIEXT
 	 DEFTOK	COLOR 		;(GFX)
 	ELSE
 	 SKIPTOK 0		;CLS (VT52)
 	ENDIF
 	DEFTOK	SYSTEM
-	IF	MMEXT
+	IF	MMEXT OR ANSIEXT
 	 DEFTOK	LOCATE		;(VT52)
 	ELSE
 	 SKIPTOK 0		;CLS (VT52)
@@ -397,7 +422,7 @@ CTAB	TOKEN	CLOSE
 	TOKEN	CALL
 	TOKEN	COMMON
 	TOKEN	CHAIN
-	IF	MMEXT
+	IF	MMEXT OR ANSIEXT
 	 TOKEN	COLOR
 	 TOKEN	CLS
 	ENDIF
@@ -451,7 +476,7 @@ LTAB	TOKEN	LPRINT
 	TOKEN	LLIST
 	TOKEN	LPOS
 	TOKEN	LET
-	IF	MMEXT
+	IF	MMEXT OR ANSIEXT
 	 TOKEN	LOCATE
 	ENDIF
 	TOKEN	LINE
@@ -15898,13 +15923,31 @@ SYSTEM	RET	NZ		;IF WASN'T EOS
 	CALL	CLSALL		;CLOSE ALL DATA FILES
 SYSTEMX	JP	CPMWRM		;WARM START CP/M
 
-	IF	MMEXT
+	IF	MMEXT  OR ANSIEXT
 
 ;	'CLS' BASIC command
 ;
 ;
-CLS	LD	A,26		;CLEAR SCREEN AND HOME CURSOR
-	JP	OUTDO
+CLS:
+	IF	MMEXT
+	 LD	A,26		;CLEAR SCREEN AND HOME CURSOR
+	 CALL	OUTDO
+	 XOR	A
+	 LD	(TTYPOS),A
+	 RET
+	ENDIF
+
+	IF	ANSIEXT
+	 CALL	ESCANSI
+	 LD	A,'H'		;CLEAR SCREEN AND HOME CURSOR
+	 CALL	OUTDO
+	 CALL	ESCANSI
+	 LD	A,'J'		;CLEAR SCREEN AND HOME CURSOR
+	 CALL	OUTDO
+	 XOR	A
+	 LD	(TTYPOS),A
+	 RET
+	ENDIF				
 
 ;	'LOCATE' BASIC command
 ;
@@ -15919,7 +15962,7 @@ LOCATE:
 	PUSH	DE
 	CP	','
 	JR	Z,LOCATE0
-	CALL	GETBYT		;Get integer 0-255
+	CALL	GETBYT		;Get integer 0-255, column pos
 	POP	DE
 	LD	D,A
 	PUSH	DE
@@ -15931,7 +15974,7 @@ LOCATE0:
 	DEFB	','
 	CP	','
 	JR	Z,LOCATE1
-	CALL	GETBYT		;Get integer 0-255
+	CALL	GETBYT		;Get integer 0-255, row pos
 	POP	DE
 	LD	E,A
 	PUSH	DE
@@ -15956,17 +15999,55 @@ LOCATE3:
 
 ; top-left corner is at 1:1 as for GW-BASIC, while MSX had 0:0
 POSIT:
-	LD	A,'='
-	CALL	ESCA
-	LD	A,L
-	ADD	A,31
-	CALL	OUTDO
-	LD	A,H
-	LD	(TTYPOS),A
-	ADD	A,31
-	JP	OUTDO
+	IF	MMEXT
+	 LD	A,'='
+	 CALL	ESCA
+	 LD	A,L
+	 ADD	A,31
+	 CALL	OUTDO
+	 LD	A,H
+	 LD	(TTYPOS),A
+	 ADD	A,31
+	 CALL	OUTDO
+	 LD	A,H
+	 DEC	A
+	 LD	(TTYPOS),A
+	 RET
+	ENDIF
+
+	IF	ANSIEXT
+	 CALL	ESCANSI
+	 LD	A,L
+	 CALL	OUTDEC
+	 LD	A,';'
+	 CALL	OUTDO
+	 LD	A,H
+	 CALL	OUTDEC
+	 LD	A,'H'
+	 CALL	OUTDO
+	 LD	A,H
+	 DEC	A
+	 LD	(TTYPOS),A
+	 RET
+	ENDIF
 
 ; print escape code in A
+	IF	ANSIEXT
+OUTDEC	 LD	B,'0'-1
+OUTDEC1	 INC	B
+	 SUB	10
+	 JR	NC,OUTDEC1
+	 LD	C,A
+	 LD	A,B
+	 CP	'0'
+	 CALL	NZ,OUTDO
+	 LD	A,C
+	 ADD	A,'0'+10
+	 JP	OUTDO
+
+ESCANSI	 LD	A,'['
+	ENDIF
+
 ESCA:
 	PUSH	AF
 	LD	A,27
@@ -15987,7 +16068,12 @@ COLOR:
 	JR	Z,COLOR0
 	CALL	GETBYT
 	POP	DE
-	CP	2		; 2 colors
+	IF	MMEXT
+	 CP	2		; 2 colors
+	ENDIF
+	IF	ANSIEXT
+	 CP	16		; 2 colors
+	ENDIF
 	RET	NC		; ?FC Error
 	LD	E,A
 	PUSH	DE
@@ -16002,7 +16088,12 @@ COLOR0:
 	JR	Z,COLOR1
 	CALL	GETBYT
 	POP	DE
-	CP	1		; 1 color
+	IF	MMEXT
+	 CP	1		; 1 color
+	ENDIF
+	IF	ANSIEXT
+	 CP	16		; 2 colors
+	ENDIF
 	RET	NC		; ?FC Error
 	LD	D,A
 	PUSH	DE
@@ -16024,17 +16115,55 @@ COLOR2:
 	PUSH	HL
 	EX	DE,HL
 	LD	(FORCLR),HL
+	LD	A,(TTYPOS)
+	PUSH	AF
 	LD	A,L
 	LD	(ATRBYT),A
 	CALL	CHGCLR
+	POP	AF
+	LD	(TTYPOS),A
 	POP	HL
 	RET
 
-CHGCLR:	OR	A
-	LD	A,14
-	JR	Z,CHGCLR1
-	INC	A
-CHGCLR1	JP	OUTDO
+	IF	MMEXT
+CHGCLR:	 OR	A
+	 LD	A,14
+	 JR	Z,CHGCLR1
+	 INC	A
+CHGCLR1	 JP	OUTDO
+	ENDIF
+
+	IF	ANSIEXT
+CHGCLR:	 CALL	ESCANSI
+	 LD	A,L
+	 AND	8
+	 LD	A,'1'
+	 JR	NZ,CHGCLR1
+	 DEC	A
+CHGCLR1	 CALL	OUTDO
+	 LD	A,';'
+	 CALL	OUTDO
+	 LD	E,H
+	 LD	A,40
+	 CALL	OUTCOL
+	 LD	A,';'
+	 CALL	OUTDO
+	 LD	E,L
+	 LD	A,30
+	 CALL	OUTCOL
+	 LD	A,'m'
+	 JP	OUTDO
+
+OUTCOL:	 PUSH	HL
+	 LD	HL,COLTAB
+	 LD	D,0
+	 ADD	HL,DE
+	 ADD	A,(HL)
+	 POP	HL
+	 JP	OUTDEC
+
+COLTAB	 DB	0,4,2,6,1,5,3,7,0,4,2,6,1,5,3,7
+	ENDIF
 
 FORCLR	DW	0
 BDRCLR	DB	0
@@ -17162,16 +17291,22 @@ AUTTXT	DB	0DH,0AH,0AH
 	DB	'Owned by Microsoft',0DH,0AH,00H
 WORDS	DB	' Bytes free',00H
 	IF	MMEXT
-HEDING	 DB	26		;CLS
+HEDING	 DB	26			;CLS
 	 DB	'BASIC-80 Rev. 5.21+dev',0DH,0AH
-	 DB	'[Montezuma Micro CP/M 2.2 Version]',0DH,0AH
+	 DB	'[ADM-3A/Montezuma Micro CP/M 2.2 Version]',0DH,0AH
 	ELSE
-HEDING	 DB	'BASIC-80 Rev. 5.21',0DH,0AH
-	 DB	'[CP/M Version]',0DH,0AH
+	 IF ANSIEXT
+HEDING	  DB	27,'[H',27,'[J'		;CLS
+	  DB	'BASIC-80 Rev. 5.21+dev',0DH,0AH
+	  DB	'[VT-100/ANSI CP/M Version]',0DH,0AH
+	 ELSE
+HEDING	  DB	'BASIC-80 Rev. 5.21',0DH,0AH
+	  DB	'[CP/M Version]',0DH,0AH
+	 ENDIF
 	ENDIF
 	DB	'Copyright 1977-1981 (C) by Microsoft',0DH,0AH
 	IF	MMEXT
-	 DB	'Created: 04-Sep-25',0DH,0AH,00H
+	 DB	'Created: 23-Nov-25',0DH,0AH,00H
 	ELSE
 	 DB	'Created: 28-Jul-81',0DH,0AH,00H
 	ENDIF
@@ -17179,8 +17314,7 @@ HEDING	 DB	'BASIC-80 Rev. 5.21',0DH,0AH
 
 	DS	003FH
 TSTACK	DS	0001H
-L6040	DS	0063H
-L60A3	EQU	$
+;L6040	DS	0063H
+;L60A3	EQU	$
 
 	END	START
-
