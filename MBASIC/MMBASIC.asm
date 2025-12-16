@@ -272,13 +272,13 @@ STMDSP	DEFTOK	END,ENDST
 	IF	MMEXT OR ANSIEXT
 	 DEFTOK	COLOR 		;(GFX)
 	ELSE
-	 SKIPTOK 0		;CLS (VT52)
+	 SKIPTOK 0		;COLOR (VT52)
 	ENDIF
 	DEFTOK	SYSTEM
 	IF	MMEXT OR ANSIEXT
 	 DEFTOK	LOCATE		;(VT52)
 	ELSE
-	 SKIPTOK 0		;CLS (VT52)
+	 SKIPTOK 0		;LOCATE (VT52)
 	ENDIF
 	DEFTOK	OPEN
 	DEFTOK	FIELD
@@ -15923,31 +15923,31 @@ SYSTEM	RET	NZ		;IF WASN'T EOS
 	CALL	CLSALL		;CLOSE ALL DATA FILES
 SYSTEMX	JP	CPMWRM		;WARM START CP/M
 
-	IF	MMEXT  OR ANSIEXT
+
+	IF	MMEXT OR ANSIEXT ;ADM-3A or VT-100/ANSI version
 
 ;	'CLS' BASIC command
 ;
-;
 CLS:
-	IF	MMEXT
-	 LD	A,26		;CLEAR SCREEN AND HOME CURSOR
-	 CALL	OUTDO
-	 XOR	A
-	 LD	(TTYPOS),A
-	 RET
-	ENDIF
+	IF	MMEXT		;ADM-3A version
+	 LD	A,26		;"CLEAR SCREEN AND HOME CURSOR"
+	 CALL	OUTDO		;Send to terminal
+	 XOR	A		;Clear col offset
+	 LD	(TTYPOS),A	;
+	 RET			;Done
+	ENDIF			;
 
-	IF	ANSIEXT
-	 CALL	ESCANSI
-	 LD	A,'H'		;CLEAR SCREEN AND HOME CURSOR
-	 CALL	OUTDO
-	 CALL	ESCANSI
-	 LD	A,'J'		;CLEAR SCREEN AND HOME CURSOR
-	 CALL	OUTDO
-	 XOR	A
-	 LD	(TTYPOS),A
-	 RET
-	ENDIF				
+	IF	ANSIEXT		;VT-100/ANSI version
+	 CALL	ESCANSI		;<Esc>[H
+	 LD	A,'H'		;"HOME CURSOR"
+	 CALL	OUTDO		;Send to terminal
+	 CALL	ESCANSI		;<Esc>[J
+	 LD	A,'J'		;CLEAR END OF SCREEN
+	 CALL	OUTDO		;Send to terminal
+	 XOR	A		;Clear col offset
+	 LD	(TTYPOS),A	;
+	 RET			;Done
+	ENDIF			;	
 
 ;	'LOCATE' BASIC command
 ;
@@ -15958,218 +15958,222 @@ CLS:
 ;	cursor	= 0 (=off) or 1..255 (=on)
 ;
 LOCATE:
-	LD	DE,$0101	;default values: top-left
-	PUSH	DE
-	CP	','
-	JR	Z,LOCATE0
+	LD	DE,$0101	;default coord: top-left
+	PUSH	DE		;save
+	CP	','		;Is there a column coordinate?
+	JR	Z,LOCATE0	;Go if not
 	CALL	GETBYT		;Get integer 0-255, column pos
-	POP	DE
-	LD	D,A
-	PUSH	DE
-	DEC	HL
+	POP	DE		;Restore coord
+	LD	D,A		;Column # to D
+	PUSH	DE		;Save coord
+	DEC	HL		;re-get last char
 	CALL	CHRGTR		;Gets next character (or token) from BASIC text.
-	JR	Z,LOCATE3
+	JR	Z,LOCATE3	;Go if end of statement
 LOCATE0:
 	CALL	SYNCHR 		;Check syntax: next byte holds the byte to be found
-	DEFB	','
-	CP	','
-	JR	Z,LOCATE1
+	DEFB	','		;Expect a comma
+	CP	','		;Is there another comma following?
+	JR	Z,LOCATE1	;Go if yes, use default row coord
 	CALL	GETBYT		;Get integer 0-255, row pos
-	POP	DE
-	LD	E,A
-	PUSH	DE
-	DEC	HL
+	POP	DE		;Restore coord
+	LD	E,A		;Row # to E
+	PUSH	DE		;Save coord
+	DEC	HL		;Re-get last char
 	CALL	CHRGTR		;Gets next character (or token) from BASIC text.
-	JR	Z,LOCATE3
+	JR	Z,LOCATE3	;Go if end of statement
 LOCATE1:
 	CALL	SYNCHR 		;Check syntax: next byte holds the byte to be found
-	DEFB	','
-	CALL	GETBYT		;Get integer 0-255
-	AND	A
-	LD	A,'1'		;show cursor
-	JR	NZ,LOCATE2
-	DEC	A		;hide cursor
+	DEFB	','		;Expect a comma
+	CALL	GETBYT		;Get integer 0-255, cursor type
+	AND	A		;Is it 0?
+	LD	A,'1'		;1 to show cursor
+	JR	NZ,LOCATE2	;Go if not
+	DEC	A		;0 to hide cursor
 LOCATE2:
-	CALL	ESCA		;ESC_y (show/hide cursor)
+	CALL	ESCA		;<Esc>{A} (show/hide cursor) [todo: ANSI version]
 LOCATE3:
-	EX	(SP),HL
-	CALL	POSIT
-	POP	HL
-	RET
+	EX	(SP),HL		;Save text pos, restore coord to HL
+	CALL	POSIT		;Set cursor position
+	POP	HL		;Restore text pos
+	RET			;Done
 
-; top-left corner is at 1:1 as for GW-BASIC, while MSX had 0:0
+;	Set cursor position
+;	Entry:	HL=row/col coordinate
+;		Top-left corner is at 1:1 as for GW-BASIC, 
+;		while MSX had 0:0
 POSIT:
-	IF	MMEXT
-	 LD	A,'='
-	 CALL	ESCA
-	 LD	A,L
-	 ADD	A,31
-	 CALL	OUTDO
-	 LD	A,H
-	 LD	(TTYPOS),A
-	 ADD	A,31
-	 CALL	OUTDO
-	 LD	A,H
-	 DEC	A
-	 LD	(TTYPOS),A
-	 RET
+	IF	MMEXT		;ADM-3A version
+	 LD	A,'='		;<Esc>={L+31}{H+31} (ADM-3A)
+	 CALL	ESCA		;Send Esc sequence to term
+	 LD	A,L		;Row offset (1..n)
+	 ADD	A,31		; to range [20H..20H+n-1]
+	 CALL	OUTDO		;Send to term
+	 LD	A,H		;Col offset (1..n)
+	 ADD	A,31		; to range [20H..20H+n-1]
+	 CALL	OUTDO		;Send to term
+	 LD	A,H		;Col offset to A
+	 DEC	A		;set 0-based
+	 LD	(TTYPOS),A	;Update horiz pos
+	 RET			;Done
 	ENDIF
 
-	IF	ANSIEXT
-	 CALL	ESCANSI
-	 LD	A,L
-	 CALL	OUTDEC
-	 LD	A,';'
-	 CALL	OUTDO
-	 LD	A,H
-	 CALL	OUTDEC
-	 LD	A,'H'
-	 CALL	OUTDO
-	 LD	A,H
-	 DEC	A
-	 LD	(TTYPOS),A
-	 RET
-	ENDIF
+	IF	ANSIEXT		;VT-100/ANSI version
+	 CALL	ESCANSI		;<Esc>[{"L"};{"H"}H (VT-100/ANSI)
+	 LD	A,L		;Row offset (1..n)
+	 CALL	OUTDEC		;Send as decimal string to term
+	 LD	A,';'		;Output ';'
+	 CALL	OUTDO		;Send to term
+	 LD	A,H		;Col offset (1..n)
+	 CALL	OUTDEC		;Send as decimal string to term
+	 LD	A,'H'		;'H'
+	 CALL	OUTDO		;Send to term
+	 LD	A,H		;Col offset to A
+	 DEC	A		;set 0-based
+	 LD	(TTYPOS),A	;Update horiz pos
+	 RET			;Done
 
-; print escape code in A
-	IF	ANSIEXT
-OUTDEC	 LD	B,'0'-1
-OUTDEC1	 INC	B
-	 SUB	10
-	 JR	NC,OUTDEC1
-	 LD	C,A
-	 LD	A,B
-	 CP	'0'
-	 CALL	NZ,OUTDO
-	 LD	A,C
-	 ADD	A,'0'+10
-	 JP	OUTDO
+;	 Print A as 2-digit decimal number (0..99)
+OUTDEC	 LD	B,'0'-1		;Initialize ASCII digit value
+OUTDEC1	 INC	B		;Increment 10s
+	 SUB	10		;Subtract 10
+	 JR	NC,OUTDEC1	;Until < 0
+	 LD	C,A		;Save remainder - 10
+	 LD	A,B		;Get 10s
+	 CP	'0'		;Is it '0'
+	 CALL	NZ,OUTDO	;Send to term if not
+	 LD	A,C		;Get remainder - 10 back
+	 ADD	A,'0'+10	;Adjust to ASCII units digit
+	 JP	OUTDO		;Send to term
 
-ESCANSI	 LD	A,'['
-	ENDIF
+;	 Print <Esc>[
+ESCANSI	 LD	A,'['		;Char following <Esc>
+	ENDIF			;VT-100/ANSI version
 
-ESCA:
-	PUSH	AF
-	LD	A,27
-	CALL	OUTDO
-	POP	AF
-	JP	OUTDO
-
+;	print escape code in A
+ESCA:	PUSH	AF		;Save char following <Esc>
+	LD	A,27		;Send <Esc> to term
+	CALL	OUTDO		;
+	POP	AF		;Get back next char
+	JP	OUTDO		;Send to term and return
 
 ;	'COLOR' BASIC command
 ;
 ;
-COLOR:
-	LD	BC,FCERR
-	PUSH	BC
-	LD	DE,(FORCLR)
-	PUSH	DE
-	CP	','
-	JR	Z,COLOR0
-	CALL	GETBYT
-	POP	DE
-	IF	MMEXT
-	 CP	2		; 2 colors
-	ENDIF
-	IF	ANSIEXT
-	 CP	16		; 2 colors
-	ENDIF
-	RET	NC		; ?FC Error
-	LD	E,A
-	PUSH	DE
-	DEC	HL
-	CALL	CHRGTR
-	JR	Z,COLOR2
-COLOR0:
-	CALL	SYNCHR
-	DEFB	','
-	JR	Z,COLOR2
-	CP	','
-	JR	Z,COLOR1
-	CALL	GETBYT
-	POP	DE
-	IF	MMEXT
-	 CP	1		; 1 color
-	ENDIF
-	IF	ANSIEXT
-	 CP	16		; 2 colors
-	ENDIF
-	RET	NC		; ?FC Error
-	LD	D,A
-	PUSH	DE
-	DEC	HL
-	CALL	CHRGTR
-	JR	Z,COLOR2
-COLOR1:
-	CALL	SYNCHR
-	DEFB	','
-	CALL	GETBYT
-	POP	DE
-	CP	1		; 1 color
-	RET	NC		; ?FC Error
-	LD	(BDRCLR),A
-	PUSH	DE
-COLOR2:
-	POP	DE
-	POP	AF		; Pop ?FC Error ret address
-	PUSH	HL
-	EX	DE,HL
-	LD	(FORCLR),HL
-	LD	A,(TTYPOS)
-	PUSH	AF
-	LD	A,L
-	LD	(ATRBYT),A
-	CALL	CHGCLR
-	POP	AF
-	LD	(TTYPOS),A
-	POP	HL
-	RET
+COLOR:	LD	BC,FCERR	;Push ?FC Error handler to stack
+	PUSH	BC		;
+	LD	DE,(FORCLR)	;Get old foreground/background colors
+	PUSH	DE		;Save them
+	CP	','		;Is a foreground color given?
+	JR	Z,COLOR0	;Go if not
+	CALL	GETBYT		;Parse foreground color
+	POP	DE		;Restore colors
+	IF	MMEXT		;
+	 CP	2		;ADM-3A: 2 colors (0=normal and 1=reverse)
+	ENDIF			;
+	IF	ANSIEXT		;
+	 CP	16		;VT100/ANSI: 16 colors
+	ENDIF			;
+	RET	NC		;Exit with ?FC Error if out of range
+	LD	E,A		;Foreground color to E
+	PUSH	DE		;Save colors
+	DEC	HL		;Re-get last char
+	CALL	CHRGTR		;
+	JR	Z,COLOR2	;Go if end of statement
+COLOR0:	CALL	SYNCHR		;Expect a comma
+	DEFB	','		;
+	CP	','		;Is it directly followed by another comma?
+	JR	Z,COLOR1	;Go if yes
+	CALL	GETBYT		;Parse background color
+	POP	DE		;Restore colors
+	IF	MMEXT		;
+	 CP	1		;ADM-3A: 1 color allowed (0)
+	ENDIF			;
+	IF	ANSIEXT		;
+	 CP	16		;VT100/ANSI: 16 colors
+	ENDIF			;
+	RET	NC		;Exit with ?FC Error if out of range
+	LD	D,A		;Background color to D
+	PUSH	DE		;Save colors
+	DEC	HL		;Re-get last char
+	CALL	CHRGTR		;
+	JR	Z,COLOR2	;Go if end of statement
+COLOR1:	CALL	SYNCHR		;Expect a comma
+	DEFB	','		;
+	CALL	GETBYT		;Parse border color (only 0 allowed)
+	POP	DE		;Restore colors
+	CP	1		;1 color allowed (0)
+	RET	NC		;Exit with ?FC Error if out of range
+	LD	(BDRCLR),A	;Set border color
+	PUSH	DE		;Save colors
+COLOR2:	POP	DE		;Restore colors
+	POP	AF		;Discard ?FC Error ret address
+	PUSH	HL		;Save text pointer
+	EX	DE,HL		;Colors to HL
+	LD	(FORCLR),HL	;Save frgd and bkgd colors
+	LD	A,(TTYPOS)	;Get current horiz pos
+	PUSH	AF		;Save it
+	LD	A,L		;Get foreground color
+	LD	(ATRBYT),A	;Save as attribute byte (currently unused)
+	CALL	CHGCLR		;Change colors
+	POP	AF		;Restore horiz pos
+	LD	(TTYPOS),A	;Put it back
+	POP	HL		;Restore text ptr
+	RET			;Done
 
-	IF	MMEXT
-CHGCLR:	 OR	A
-	 LD	A,14
-	 JR	Z,CHGCLR1
-	 INC	A
-CHGCLR1	 JP	OUTDO
+	IF	MMEXT		;ADM-3A version
+;	 Output ADM-3A color string
+;	 Entry:	A = reverse mode (0=normal, 1=reverse)
+CHGCLR:	 OR	A		;Reverse mode active?
+	 LD	A,14		;14: set reverse mode
+	 JR	Z,CHGCLR1	;Go if yes
+	 INC	A		;15: set normal mode
+CHGCLR1	 JP	OUTDO		;Send control code to term
 	ENDIF
 
-	IF	ANSIEXT
-CHGCLR:	 CALL	ESCANSI
-	 LD	A,L
-	 AND	8
-	 LD	A,'1'
-	 JR	NZ,CHGCLR1
-	 DEC	A
-CHGCLR1	 CALL	OUTDO
-	 LD	A,';'
-	 CALL	OUTDO
-	 LD	E,H
-	 LD	A,40
-	 CALL	OUTCOL
-	 LD	A,';'
-	 CALL	OUTDO
-	 LD	E,L
-	 LD	A,30
-	 CALL	OUTCOL
-	 LD	A,'m'
-	 JP	OUTDO
+	IF	ANSIEXT		;VT-100/ANSI version
+;	 Output VT-100/ANSI color string
+;	 Entry:	L = foreground color (0..15)
+;		H = background color (0..15)
+CHGCLR:	 CALL	ESCANSI		;<Esc>[{i};{40+bkg};{30+frg}m (VT-100/ANSI)
+	 LD	A,L		;Get frg color
+	 AND	8		;Get intensity bit
+	 LD	A,'1'		;'1' for bright
+	 JR	NZ,CHGCLR1	;
+	 DEC	A		;'0' to reset attributes
+CHGCLR1	 CALL	OUTDO		;Output brightness value
+	 LD	A,';'		;Output ';'
+	 CALL	OUTDO		;
+	 LD	E,H		;Background color to convert to 0..7
+	 LD	A,40		; + 40
+	 CALL	OUTCOL		;Convert and output
+	 LD	A,';'		;Output ';'
+	 CALL	OUTDO		;
+	 LD	E,L		;Foreground color to convert to 0..7
+	 LD	A,30		; + 30
+	 CALL	OUTCOL		;Convert and output
+	 LD	A,'m'		;Output 'm'
+	 JP	OUTDO		; and return
 
-OUTCOL:	 PUSH	HL
-	 LD	HL,COLTAB
-	 LD	D,0
-	 ADD	HL,DE
-	 ADD	A,(HL)
-	 POP	HL
-	 JP	OUTDEC
+;	Convert and output background/foreground color
+;	Entry:	A = 30 for foreground, or 40 for background color
+;		E = BASIC color value (0..15)
+OUTCOL:	 PUSH	HL		;Save colors
+	 LD	HL,COLTAB	;Conversion table
+	 LD	D,0		;zero MSB
+	 ADD	HL,DE		;Point to converted color
+	 ADD	A,(HL)		;Add to base value
+	 POP	HL		;Restore colors
+	 JP	OUTDEC		;Output decimal value
 
+;	Color conversion table (BASIC to ANSI)
 COLTAB	 DB	0,4,2,6,1,5,3,7,0,4,2,6,1,5,3,7
-	ENDIF
+	ENDIF			;VT-100/ANSI version
 
-FORCLR	DW	0
-BDRCLR	DB	0
-ATRBYT	DB	0
+FORCLR	DW	0		;Frgd and bkgd colors
+BDRCLR	DB	0		;Border color
+ATRBYT	DB	0		;Attributes byte
 
-	ENDIF
+	ENDIF			;ADM-3A or VT-100/ANSI version
 
 ;	'RESET' Statement
 ;
